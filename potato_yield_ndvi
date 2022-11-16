@@ -1,0 +1,40 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var farms = ee.FeatureCollection("users/sajalsaini09/potato_yield_final"),
+    modis = ee.ImageCollection("MODIS/061/MOD13Q1"),
+    visParams = {"min":0,"max":0.7,"palette":["white","green"]};
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+Map.addLayer(farms, {color: 'blue'}, 'Farm')
+Map.centerObject(farms, 15)
+var saudi = ee.FeatureCollection(farms)
+var sentinel = ee.ImageCollection('COPERNICUS/S2').filter(ee.Filter.date('2016-02-02', '2016-02-28')).filterBounds(farms)
+var senImage = sentinel.first()
+print(senImage)
+function addNDVI(image){
+  var ndvi = image.expression(
+    "((NIR-Red) / (NIR + Red))", {
+      'NIR': image.select('B8'),
+      'Red': image.select('B4')
+    }).rename('ndvi');
+    return image.addBands(ndvi);
+}
+var LC08ndvi = sentinel.map(addNDVI);
+var L8ndvi = LC08ndvi.select('ndvi').mean();
+var reduced = L8ndvi.reduceRegions({
+  collection: saudi,
+  scale: 10,
+  reducer: ee.Reducer.mean()
+});
+print(reduced, 'NDVI Values');
+var chart = ui.Chart.feature.byFeature({
+  features: reduced,
+  xProperty: 'Feature Index',
+  yProperties: ['mean']}).setOptions({
+    interpolateNulls: true,
+    lineWidth: 1,
+    pointSize: 3,
+    title: 'NDVI over Time',
+    vAxis: {title: 'NDVI Value'},
+    hAxis: {title: 'Plot Number', gridlines: {count: 12}}
+  })
+  
+print(chart)
